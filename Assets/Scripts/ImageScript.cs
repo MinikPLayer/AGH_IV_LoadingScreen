@@ -35,22 +35,27 @@ public class ImageScript : MonoBehaviour
     void Start()
     {
         //lastChange = lastChange.AddSeconds(initialDelay);
-        lastChange += initialDelay + musicScript.start;
+        Reset(true);
+
+        lastAspect = Camera.main.aspect;
+    }
+
+    public void Reset(bool skipFadeIn = false)
+    {
+        lastChange = initialDelay + musicScript.start;
         animMoveX = UnityEngine.Random.Range(-1000, 1000) / 2137.0f;
         animMoveY = UnityEngine.Random.Range(-1000, 1000) / 2137.0f;
-        ChangeImage(true);
+        //ChangeImage(skipFadeIn);
+        StartCoroutine(ChangeImage(skipFadeIn, true));
     }
 
     float MoveTransform(float move)
     {
         move = move * -1337;
-        Debug.Log(move);
         move -= (int)move; // range (0, 1)
-        Debug.Log(move);
         move *= (maxAnimMove - minAnimMove); // range (-maxAnimMove, maxAnimMove)
         move += Math.Sign(move) * minAnimMove;
-        Debug.Log(move);
-        Debug.Log("\n\n\n");
+
 
         return move;
     }
@@ -76,7 +81,6 @@ public class ImageScript : MonoBehaviour
         sr.transform.localScale = new Vector3(1, 1, 1);
 
         var multX = (Math.Abs(animMoveX) * changeTime) * 0.5f; // 50 because 0.5 * 100
-        Debug.Log("MultX:" + multX);
 
         var width = sr.sprite.bounds.size.x - multX;
         var height = sr.sprite.bounds.size.y;
@@ -113,13 +117,21 @@ public class ImageScript : MonoBehaviour
         var posY = bottom;
         var p = sr.transform.position;
         p.y = (float)posY;
-        Debug.Log(posY);
         sr.transform.position = p;
+    }
+
+    void ReScaleImages()
+    {
+        ScaleToScreen(currBg, new Vector2(1, 1), 1000);
+        ScaleToScreen(currFg, new Vector2(0.4f, 0.4f), 2, -1);
+
+        fgScale = currFg.transform.localScale;
+        bgScale = currBg.transform.localScale;
     }
 
     int lastBGIndex = -1;
     int lastFGIndex = -1;
-    async void ChangeImage(bool skipFadeIn = false)
+    IEnumerator ChangeImage(bool skipFadeIn = false, bool ignoreLastChange = false)
     {
         const int steps = 100;
 
@@ -132,9 +144,13 @@ public class ImageScript : MonoBehaviour
                 var clr = fadeSprite.color;
                 clr.a = step * i;
                 fadeSprite.color = clr;
-                await Task.Delay(fadeTime);
+                //await Task.Delay(fadeTime);
+                yield return new WaitForSeconds(fadeTime / 1000f);
             }
         }
+
+        if(!ignoreLastChange)
+            lastChange += changeTime;
 
         RandomAnim();
         
@@ -142,7 +158,7 @@ public class ImageScript : MonoBehaviour
         if (fgToUse.Count == 0)
             fgToUse.AddRange(foregrounds);
 
-        var random = UnityEngine.Random.Range(0, fgToUse.Count);
+        var random = new System.Random().Next(0, fgToUse.Count);
 
         lastFGIndex = random;
         var tex = fgToUse[random];
@@ -153,15 +169,14 @@ public class ImageScript : MonoBehaviour
         if (bgToUse.Count == 0)
             bgToUse.AddRange(backgrounds);
 
-        random = UnityEngine.Random.Range(0, bgToUse.Count);
+        random = new System.Random().Next(0, bgToUse.Count); //UnityEngine.Random.Range(0, bgToUse.Count);
 
         lastBGIndex = random;
         tex = bgToUse[random];
         bgToUse.RemoveAt(random);
         currBg.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0f));
 
-        ScaleToScreen(currBg, new Vector2(1,1), 1000);
-        ScaleToScreen(currFg, new Vector2(0.4f, 0.4f), 2, -1);
+        ReScaleImages();
 
         startBgScaleY = currBg.transform.localScale.y;
 
@@ -170,20 +185,45 @@ public class ImageScript : MonoBehaviour
             var clr = fadeSprite.color;
             clr.a = 1 - step * i;
             fadeSprite.color = clr;
-            await Task.Delay(fadeTime);
+            //await Task.Delay(fadeTime);
+            yield return new WaitForSeconds(fadeTime / 1000f);
         }
+
+        changing = false;
     }
 
+    Vector3 bgScale;
+    Vector3 fgScale;
+
+    float lastAspect;
     float lastChange = 0;
+
+    bool changing = false;
     // Update is called once per frame
     void Update()
     {
         var now = musicScript.music.time;
+        if (now < lastChange + initialDelay)
+            Reset();
+
+        Debug.Log(lastChange);
         var diff = (now - lastChange);
-        if(diff > changeTime )//&& !inProgress)
+        if(diff > changeTime && !changing)//&& !inProgress)
         {
-            ChangeImage();
-            lastChange = now;
+            //ChangeImage();
+            changing = true;
+            StartCoroutine(ChangeImage());
+            
+        }
+
+
+
+        float aspect = Camera.main.aspect;
+        if (lastAspect != aspect)
+        {
+            ReScaleImages();
+            Debug.Log("Rescaling");
+            lastAspect = aspect;
         }
 
         Vector3 p = currBg.transform.position;
@@ -195,11 +235,11 @@ public class ImageScript : MonoBehaviour
         currFg.transform.position = p;
 
         Vector3 s = currBg.transform.localScale;
-        s.y = s.x = s.x + animMoveY * Time.deltaTime * startBgScaleY * 0.1f;
+        s.y = s.x = bgScale.x + animMoveY * startBgScaleY * 0.1f * diff;
         currBg.transform.localScale = s;
 
         s = currFg.transform.localScale;
-        s.y = s.x = s.x - animMoveY * Time.deltaTime * 0.1f;
+        s.y = s.x = fgScale.x - animMoveY * 0.1f * diff;
         currFg.transform.localScale = s;
     }
 }

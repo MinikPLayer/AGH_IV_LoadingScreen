@@ -13,12 +13,18 @@ public class MusicScript : MonoBehaviour
     {
         music = GetComponent<AudioSource>();
         music.time = start;
+        music.loop = true;
         music.Play();
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        // Music ended
+        if(music.time < start)
+        {
+            music.time = start;
+            music.Play();
+        }
     }
 }
