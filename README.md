@@ -5,4 +5,4 @@ Taki tam projekt z nudów 😅
 --> http://minik.ml/agh/intro/ <--
 
 # Disclaimer!
-Projekt ma charakter czysto satyryczny i nie ma na celu nikogo urazić.
+Projekt ma charakter czysto satyryczny i nie miał na celu nikogo urazić, w razie pytań i/lub zastrzeżeń proszę o kontakt w celu wyjaśnienia sprawy
